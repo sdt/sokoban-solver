@@ -70,7 +70,7 @@ fun solve_level($board, $state) {
             next unless $new_state;
             next if has_been_seen($new_state, $seen_states);
             my $new_hist = "$hist,$move";
-            return $new_hist if is_solution($new_state);
+            return substr($new_hist, 1) if is_solution($new_state);
             push(@agenda, [ $new_state, $new_hist ]);
         }
     }
