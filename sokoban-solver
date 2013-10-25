@@ -4,6 +4,7 @@ use warnings;
 use autodie;
 use Function::Parameters qw(:strict);
 use List::Util qw( max );
+use Time::HiRes qw( usleep );
 
 # Sokoban solver
 #
@@ -24,6 +25,7 @@ my $hole = '.';
 my $rock = '$';
 my $dude = '@';
 my $floor = ' ';
+my $sleep_us = 200_000;
 
 my %moves = (
     U => [ 0, -1 ],
@@ -38,6 +40,9 @@ fun main(@argv) {
     my ($board, $state) = parse_level($argv[0] // 'test.txt');
     my $solution = solve_level($board, $state);
     say $solution // 'No solution';
+    if ($solution) {
+        playback_solution($board, $state, $solution);
+    }
     return 0;
 }
 
@@ -95,6 +100,18 @@ fun print_state($board, $state) {
         }
         say $row;
     }
+}
+
+fun playback_solution($board, $state, $solution) {
+    print_state($board, $state);
+
+    for my $move (split(/,/, $solution)) {
+        my ($dx, $dy) = @{ $moves{$move} };
+        $state = try_move($dx, $dy, $state, $board);
+        usleep($sleep_us);
+        print_state($board, $state);
+    }
+
 }
 
 fun parse_level($filename) {
