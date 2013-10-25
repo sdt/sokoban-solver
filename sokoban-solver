@@ -139,30 +139,6 @@ fun try_move($dx, $dy, $state, $board) {
     return;
 }
 
-fun try_move_right($state, $board) {
-    my $x = $state->{x};
-    my $y = $state->{y};
-
-    my $r0key = key($x + 1, $y);
-    my $r0 = lookup($r0key, $state, $board);
-    if ($r0 eq $floor) {
-        return new_state($state, { x => $x + 1 });
-    }
-    elsif ($r0 eq $rock) {
-        my $r1key = key($x + 2, $y);
-        my $r1 = lookup($r1key, $state, $board);
-        if ($r1 eq $floor) {
-            return new_state($state,
-                { x => $x + 1, $r1key => $rock }, [ $r0key ]);
-        }
-        elsif ($r1 eq $hole) {
-            return new_state($state,
-                { x => $x + 1 }, [ $r0key, $r1key ]);
-        }
-    }
-    return;
-}
-
 fun lookup($key, $state, $board) {
     return $board->{$key} // $state->{$key} // $floor;
 }
