@@ -27,6 +27,7 @@ my $rock = '$';
 my $dude = '@';
 my $floor = ' ';
 my $sleep_us = 200_000;
+my $states = 0;
 
 my %moves = (
     U => [ 0, -1 ],
@@ -44,6 +45,7 @@ fun main(@argv) {
     if ($solution) {
         playback_solution($board, $state, $solution);
     }
+    say "$states states examined";
     return 0;
 }
 
@@ -72,6 +74,7 @@ fun solve_level($board, $state) {
     my $seen_states = {};
     while (my $next = shift(@agenda)) {
         my ($state, $hist) = @$next;
+        $states++;
         for my $move (keys %moves) {
             my ($dx, $dy) = @{ $moves{$move} };
             my $new_state = try_move($dx, $dy, $state, $board);
