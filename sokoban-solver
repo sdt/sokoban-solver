@@ -3,6 +3,7 @@ use 5.16.0;
 use warnings;
 use autodie;
 use Function::Parameters qw(:strict);
+use List::Util qw( max );
 
 # Sokoban solver
 #
@@ -77,6 +78,24 @@ fun solve_level($board, $state) {
     return;
 }
 
+fun print_state($board, $state) {
+    my ($maxx, $maxy) = 0;
+    for my $key (keys %$board) {
+        my ($x, $y) = unkey($key);
+        $maxx = max($maxx, $x);
+        $maxy = max($maxy, $y);
+    }
+
+    for my $y (0 .. $maxy) {
+        my $row;
+        for my $x (0 .. $maxx) {
+            my $c = ($x == $state->{x} && $y == $state->{y}) ?
+                    $dude : lookup(key($x, $y), $state, $board);
+            $row .= $c;
+        }
+        say $row;
+    }
+}
 
 fun parse_level($filename) {
     open my $fh, '<', $filename;
@@ -155,3 +174,4 @@ fun has_been_seen($state, $history) {
 }
 
 fun key($x, $y) { "$x:$y" }
+fun unkey($key) { split(/:/, $key) }
