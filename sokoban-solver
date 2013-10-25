@@ -5,6 +5,7 @@ use autodie;
 use Function::Parameters qw(:strict);
 use List::Util qw( max );
 use Time::HiRes qw( usleep );
+use warnings FATAL => 'all';
 
 # Sokoban solver
 #
@@ -83,14 +84,7 @@ fun solve_level($board, $state) {
     return;
 }
 
-fun print_state($board, $state) {
-    my ($maxx, $maxy) = 0;
-    for my $key (keys %$board) {
-        my ($x, $y) = unkey($key);
-        $maxx = max($maxx, $x);
-        $maxy = max($maxy, $y);
-    }
-
+fun print_state($board, $state, $maxx, $maxy) {
     for my $y (0 .. $maxy) {
         my $row;
         for my $x (0 .. $maxx) {
@@ -102,16 +96,27 @@ fun print_state($board, $state) {
     }
 }
 
+fun board_size($board) {
+    my ($maxx, $maxy) = (0, 0);
+    for my $key (keys %$board) {
+        my ($x, $y) = unkey($key);
+        $maxx = max($maxx, $x);
+        $maxy = max($maxy, $y);
+    }
+    return ($maxx, $maxy);
+}
+
 fun playback_solution($board, $state, $solution) {
-    print_state($board, $state);
+    my ($maxx, $maxy) = board_size($board);
+    print_state($board, $state, $maxx, $maxy);
 
     for my $move (split(/,/, $solution)) {
         my ($dx, $dy) = @{ $moves{$move} };
         $state = try_move($dx, $dy, $state, $board);
         usleep($sleep_us);
-        print_state($board, $state);
+        say '';
+        print_state($board, $state, $maxx, $maxy);
     }
-
 }
 
 fun parse_level($filename) {
