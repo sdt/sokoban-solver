@@ -89,6 +89,7 @@ fun solve_level($board, $state) {
 }
 
 fun print_state($board, $state, $maxx, $maxy) {
+    ($maxx, $maxy) = board_size($board) unless defined $maxx;
     for my $y (0 .. $maxy) {
         my $row;
         for my $x (0 .. $maxx) {
