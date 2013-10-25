@@ -1,0 +1,181 @@
+#!/usr/bin/env perl
+use 5.16.0;
+use warnings;
+use autodie;
+use Function::Parameters qw(:strict);
+
+# Sokoban solver
+#
+# Level files look like so: .
+      ###
+      #.#
+  #####.#####
+ ##         ##
+##  # # # #  ##
+#  ##     ##  #
+# ##  # #  ## #
+#     $@$     #
+####  ###  ####
+   #### ####
+
+my $wall = '#';
+my $hole = '.';
+my $rock = '$';
+my $dude = '@';
+my $floor = ' ';
+
+my %moves = (
+    U => [ 0, -1 ],
+    D => [ 0, +1 ],
+    L => [ -1, 0 ],
+    R => [ +1, 0 ],
+);
+
+exit main(@ARGV);
+
+fun main(@argv) {
+    my ($board, $state) = parse_level($argv[0] // 'test.txt');
+    my $solution = solve_level($board, $state);
+    say $solution // 'No solution';
+    return 0;
+}
+
+# Game configuration is:
+# board + player(x,y) + @rocks[x,y] + @holes[x,y]
+#
+# Solution = @holes == 0 (or @rocks == 0)
+#
+# Move options:
+#   @_  -> _@
+#   @$_ -> _@$
+#   @$. -> _@_
+# Everything else means no move
+#
+# Another board config is:
+#   image + player(x,y) + score
+# Solution = score == 0
+# Score drops on @$. -> _@_
+#
+# Another option: $object{$x:$y} = player | rock | wall | hole
+
+fun solve_level($board, $state) {
+    my @agenda = ( [ $state, '' ] );
+
+    my $seen_states = {};
+    while (my $next = shift(@agenda)) {
+        my ($state, $hist) = @$next;
+        for my $move (keys %moves) {
+            my ($dx, $dy) = @{ $moves{$move} };
+            my $new_state = try_move($dx, $dy, $state, $board);
+            next unless $new_state;
+            next if has_been_seen($new_state, $seen_states);
+            my $new_hist = "$hist,$move";
+            return $new_hist if is_solution($new_state);
+            push(@agenda, [ $new_state, $new_hist ]);
+        }
+    }
+    return;
+}
+
+
+fun parse_level($filename) {
+    open my $fh, '<', $filename;
+    my $board = { };
+    my $state = { };
+    my $pos;
+    my $y = 0;
+    for my $line (<$fh>) {
+        my $x = 0;
+        for my $char (split(//, $line)) {
+            my $key = key($x, $y);
+            if ($char eq $dude) {
+                $state->{x} = $x;
+                $state->{y} = $y;
+            }
+            elsif ($char eq $hole || $char eq $rock) { $state->{$key} = $char }
+            elsif ($char eq $wall) { $board->{$key} = $char }
+            $x++;
+        }
+        $y++;
+    }
+    my $holes = grep { $_ eq $hole } values %$state;
+    my $rocks = grep { $_ eq $rock } values %$state;
+    die "$rocks rocks, but $holes holes" unless $holes == $rocks;
+    die "No rocks or holes!" unless $holes;
+
+    return ($board, $state);
+}
+
+fun state_rep($state) {
+    my @keys = sort keys %$state;
+    join('', map { $_ => $state->{$_} } @keys);
+}
+
+fun is_solution($state) {
+    (grep { $_ eq $rock } values %$state) == 0
+}
+
+fun try_move($dx, $dy, $state, $board) {
+    my $x = $state->{x};
+    my $y = $state->{y};
+
+    my $p0key = key($x + $dx, $y + $dy);
+    my $p0 = lookup($p0key, $state, $board);
+    if ($p0 eq $floor) {
+        return new_state($state, { x => $x + $dx, y => $y + $dy });
+    }
+    elsif ($p0 eq $rock) {
+        my $p1key = key($x + $dx * 2, $y + $dy * 2);
+        my $p1 = lookup($p1key, $state, $board);
+        if ($p1 eq $floor) {
+            return new_state($state,
+                { x => $x + $dx, y => $y + $dy, $p1key => $rock }, [ $p0key ]);
+        }
+        elsif ($p1 eq $hole) {
+            return new_state($state,
+                { x => $x + $dx, y => $y + $dy }, [ $p0key, $p1key ]);
+        }
+    }
+    return;
+}
+
+fun try_move_right($state, $board) {
+    my $x = $state->{x};
+    my $y = $state->{y};
+
+    my $r0key = key($x + 1, $y);
+    my $r0 = lookup($r0key, $state, $board);
+    if ($r0 eq $floor) {
+        return new_state($state, { x => $x + 1 });
+    }
+    elsif ($r0 eq $rock) {
+        my $r1key = key($x + 2, $y);
+        my $r1 = lookup($r1key, $state, $board);
+        if ($r1 eq $floor) {
+            return new_state($state,
+                { x => $x + 1, $r1key => $rock }, [ $r0key ]);
+        }
+        elsif ($r1 eq $hole) {
+            return new_state($state,
+                { x => $x + 1 }, [ $r0key, $r1key ]);
+        }
+    }
+    return;
+}
+
+fun lookup($key, $state, $board) {
+    return $board->{$key} // $state->{$key} // $floor;
+}
+
+fun new_state($state, $changes, $deletions = []) {
+    my %new_state = ( %$state, %$changes );
+    delete @new_state{@$deletions};
+    return \%new_state;
+}
+
+fun has_been_seen($state, $history) {
+    my $rep = state_rep($state);
+    return $history->{$rep}++;
+}
+
+fun key($x, $y) { "$x:$y" }
