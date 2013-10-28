@@ -54,6 +54,7 @@ fun main(@argv) {
 #
 # Move options:
 #   @_  -> _@
+#   @.  -> _@
 #   @$_ -> _@$
 #   @$. -> _@_
 # Everything else means no move
@@ -162,7 +163,7 @@ fun try_move($dx, $dy, $state, $board) {
 
     my $p0key = key($x + $dx, $y + $dy);
     my $p0 = lookup($p0key, $state, $board);
-    if ($p0 eq $floor) {
+    if ($p0 eq $floor || $p0 eq $hole) {
         return new_state($state, { x => $x + $dx, y => $y + $dy });
     }
     elsif ($p0 eq $rock) {
