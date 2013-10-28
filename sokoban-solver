@@ -86,11 +86,10 @@ fun solve_level($board, $state) {
     return;
 }
 
-fun print_state($board, $state, $maxx, $maxy) {
-    ($maxx, $maxy) = board_size($board) unless defined $maxx;
-    for my $y (0 .. $maxy) {
+fun print_state($board, $state) {
+    for my $y (0 .. $board->{h}-1) {
         my $row;
-        for my $x (0 .. $maxx) {
+        for my $x (0 .. $board->{w}-1) {
             my $c = ($x == $state->{x} && $y == $state->{y}) ?
                     $dude : lookup(key($x, $y), $state, $board);
             $row .= $c;
@@ -99,26 +98,15 @@ fun print_state($board, $state, $maxx, $maxy) {
     }
 }
 
-fun board_size($board) {
-    my ($maxx, $maxy) = (0, 0);
-    for my $key (keys %$board) {
-        my ($x, $y) = unkey($key);
-        $maxx = max($maxx, $x);
-        $maxy = max($maxy, $y);
-    }
-    return ($maxx, $maxy);
-}
-
 fun playback_solution($board, $state, $solution) {
-    my ($maxx, $maxy) = board_size($board);
-    print_state($board, $state, $maxx, $maxy);
+    print_state($board, $state);
 
     for my $move (split(/,/, $solution)) {
         my ($dx, $dy) = @{ $moves{$move} };
         $state = try_move($dx, $dy, $state, $board);
         usleep($sleep_us);
         say '';
-        print_state($board, $state, $maxx, $maxy);
+        print_state($board, $state);
     }
 }
 
@@ -128,6 +116,7 @@ fun parse_level($filename) {
     my $state = { };
     my $pos;
     my $y = 0;
+    my $w = 0;
     for my $line (<$fh>) {
         my $x = 0;
         for my $char (split(//, $line)) {
@@ -139,9 +128,12 @@ fun parse_level($filename) {
             elsif ($char eq $hole || $char eq $rock) { $state->{$key} = $char }
             elsif ($char eq $wall) { $board->{$key} = $char }
             $x++;
+            $w = max($w, $x);
         }
         $y++;
     }
+    $board->{w} = $w;
+    $board->{h} = $y;
     my $holes = grep { $_ eq $hole } values %$state;
     my $rocks = grep { $_ eq $rock } values %$state;
     die "$rocks rocks, but $holes holes" unless $holes == $rocks;
