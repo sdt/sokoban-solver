@@ -48,11 +48,13 @@ my %colors = (
     $red   => 'red',
     $green => 'cyan',
 );
+
+my %colormap;
+
 exit main(@ARGV);
 
 fun main(@argv) {
     my ($board, $state) = parse_level($argv[0] // 'test.txt');
-    my $colormap = make_colormap($board, $state);
     my $solution = solve_level($board, $state);
     playback_solution($board, $state, $solution) if $solution;
     say $solution // 'No solution';
@@ -85,7 +87,10 @@ fun solve_level($board, $state) {
     my $seen_states = {};
     while (my $next = shift(@agenda)) {
         my ($state, $hist) = @$next;
-        $states++;
+        ++$states;
+        if (($states & 0x7FFF) == 0) {
+            say "$states states, ", scalar @agenda, " in queue, $hist";
+        }
         for my $move (keys %moves) {
             my ($dx, $dy) = @{ $moves{$move} };
             my $new_state = try_move($board, $state, $dx, $dy);
@@ -177,6 +182,11 @@ fun state_rep($state) {
     join('', map { $_ => $state->{$_} } @keys);
 }
 
+fun holes_rep($state) {
+    my @keys = sort grep { $state->{$_} eq $hole } keys %$state;
+    join(',', @keys);
+}
+
 fun is_solution($state) {
     (grep { $_ eq $rock } values %$state) == 0
 }
@@ -184,6 +194,8 @@ fun is_solution($state) {
 fun try_move($board, $state, $dx, $dy) {
     my $x = $state->{x};
     my $y = $state->{y};
+
+    my $colormap = colormap($board, $state);
 
     my $p0key = key($x + $dx, $y + $dy);
     my $p0 = lookup($board, $state, $p0key);
@@ -193,7 +205,7 @@ fun try_move($board, $state, $dx, $dy) {
     elsif ($p0 eq $rock) {
         my $p1key = key($x + $dx * 2, $y + $dy * 2);
         my $p1 = lookup($board, $state, $p1key);
-        if ($p1 eq $floor) {
+        if ($p1 eq $floor && $colormap->{$p1key} ne $red) {
             return new_state($state,
                 { x => $x + $dx, y => $y + $dy, $p1key => $rock }, [ $p0key ]);
         }
@@ -294,4 +306,9 @@ fun floodfill($board, $colormap, $x, $y, $c) {
         my ($dx, $dy) = @$delta;
         floodfill($board, $colormap, $x + $dx, $y + $dy, $c);
     }
+}
+
+fun colormap($board, $state) {
+    my $state_rep = holes_rep($state);
+    return $colormap{$state_rep} //= make_colormap($board, $state);
 }
