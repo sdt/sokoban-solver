@@ -27,8 +27,12 @@ my $hole = '.';
 my $rock = '$';
 my $dude = '@';
 my $floor = ' ';
-my $sleep_us = 200_000;
+
+my $sleep_us = 100_000;
 my $states = 0;
+
+my $green = 'G';
+my $red   = 'R';
 
 my %moves = (
     U => [ 0, -1 ],
@@ -38,14 +42,17 @@ my %moves = (
 );
 
 my %colors = (
-    $dude => 'magenta',
-    $hole => 'blue',
-    $rock => 'yellow',
+    $dude  => 'magenta',
+    $hole  => 'blue',
+    $rock  => 'yellow',
+    $red   => 'red',
+    $green => 'cyan',
 );
 exit main(@ARGV);
 
 fun main(@argv) {
     my ($board, $state) = parse_level($argv[0] // 'test.txt');
+    my $colormap = make_colormap($board, $state);
     my $solution = solve_level($board, $state);
     playback_solution($board, $state, $solution) if $solution;
     say $solution // 'No solution';
@@ -98,6 +105,18 @@ fun print_state($board, $state) {
         for my $x (0 .. $board->{w}-1) {
             my $c = ($x == $state->{x} && $y == $state->{y}) ?
                     $dude : lookup($board, $state, key($x, $y));
+            $row .= colorise($c);
+        }
+        say $row;
+    }
+}
+
+fun print_colormap($board, $state, $colormap) {
+    for my $y (0 .. $board->{h}-1) {
+        my $row;
+        for my $x (0 .. $board->{w}-1) {
+            my $key = key($x, $y);
+            my $c = $state->{$key} // $colormap->{$key} // $floor;
             $row .= colorise($c);
         }
         say $row;
@@ -203,3 +222,76 @@ fun has_been_seen($state, $history) {
 
 fun key($x, $y) { "$x:$y" }
 fun unkey($key) { split(/:/, $key) }
+
+fun make_colormap($board, $state) {
+    my $w = $board->{w};
+    my $h = $board->{h};
+    my $colormap = {};
+
+    # First of all, holes are always green
+    for my $key (grep { $state->{$_} eq $hole } keys %$state) {
+        $colormap->{$key} = $green;
+    }
+
+    # And walls are red
+    for my $key (grep { $_ =~ /^\d+:\d+$/ } keys %$board) {
+        $colormap->{$key} = $red;
+    }
+
+    # Floodfill from the edges - the outside area is red
+    # (or green it doesn't matter really)
+    for my $x (0 .. $w-1) {
+        floodfill($board, $colormap, $x, 0, $red);
+        floodfill($board, $colormap, $x, $h - 1, $red);
+    }
+    for my $y (0 .. $h-1) {
+        floodfill($board, $colormap, 0, $y, $red);
+        floodfill($board, $colormap, $w - 1, $y, $red);
+    }
+
+    my $board_size = $w * $h;
+    my $colors_filled = keys %$colormap;
+    while (keys %$colormap < $board_size) {
+
+        # For each green square, find any neighbouring squares that could be
+        # pushed onto this green square, and colour them green also.
+        for my $key (grep { $colormap->{$_} eq $green } keys %$colormap) {
+            my ($x, $y) = unkey($key);
+            for my $delta (values %moves) {
+                my ($dx, $dy) = @$delta;
+                my ($x0, $y0) = ($x + $dx, $y + $dy);
+                my $key0 = key($x0, $y0);
+                next if $colormap->{$key0};
+                my ($x1, $y1) = ($x0 + $dx, $y0 + $dy);
+                my $key1 = key($x1, $y1);
+                next if $board->{$key1};
+                $colormap->{$key0} = $green;
+            }
+        }
+        my $prev = $colors_filled;
+        $colors_filled = keys %$colormap;
+        last if $prev == $colors_filled;
+    }
+
+    # Any remaining squares are now red
+    for my $y (0 .. $h-1) {
+        for my $x (0 .. $w-1) {
+            $colormap->{key($x, $y)} //= $red;
+        }
+    }
+
+    return $colormap;
+}
+
+fun floodfill($board, $colormap, $x, $y, $c) {
+    return if ($x < 0 || $x >= $board->{w});
+    return if ($y < 0 || $y >= $board->{h});
+    my $key = key($x, $y);
+    return if $board->{$key};
+    return if $colormap->{$key};
+    $colormap->{$key} = $c;
+    for my $delta (values %moves) {
+        my ($dx, $dy) = @$delta;
+        floodfill($board, $colormap, $x + $dx, $y + $dy, $c);
+    }
+}
