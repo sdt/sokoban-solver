@@ -75,7 +75,7 @@ fun solve_level($board, $state) {
         $states++;
         for my $move (keys %moves) {
             my ($dx, $dy) = @{ $moves{$move} };
-            my $new_state = try_move($dx, $dy, $state, $board);
+            my $new_state = try_move($board, $state, $dx, $dy);
             next unless $new_state;
             next if has_been_seen($new_state, $seen_states);
             my $new_hist = "$hist,$move";
@@ -91,7 +91,7 @@ fun print_state($board, $state) {
         my $row;
         for my $x (0 .. $board->{w}-1) {
             my $c = ($x == $state->{x} && $y == $state->{y}) ?
-                    $dude : lookup(key($x, $y), $state, $board);
+                    $dude : lookup($board, $state, key($x, $y));
             $row .= $c;
         }
         say $row;
@@ -103,7 +103,7 @@ fun playback_solution($board, $state, $solution) {
 
     for my $move (split(/,/, $solution)) {
         my ($dx, $dy) = @{ $moves{$move} };
-        $state = try_move($dx, $dy, $state, $board);
+        $state = try_move($board, $state, $dx, $dy);
         usleep($sleep_us);
         say '';
         print_state($board, $state);
@@ -151,18 +151,18 @@ fun is_solution($state) {
     (grep { $_ eq $rock } values %$state) == 0
 }
 
-fun try_move($dx, $dy, $state, $board) {
+fun try_move($board, $state, $dx, $dy) {
     my $x = $state->{x};
     my $y = $state->{y};
 
     my $p0key = key($x + $dx, $y + $dy);
-    my $p0 = lookup($p0key, $state, $board);
+    my $p0 = lookup($board, $state, $p0key);
     if ($p0 eq $floor || $p0 eq $hole) {
         return new_state($state, { x => $x + $dx, y => $y + $dy });
     }
     elsif ($p0 eq $rock) {
         my $p1key = key($x + $dx * 2, $y + $dy * 2);
-        my $p1 = lookup($p1key, $state, $board);
+        my $p1 = lookup($board, $state, $p1key);
         if ($p1 eq $floor) {
             return new_state($state,
                 { x => $x + $dx, y => $y + $dy, $p1key => $rock }, [ $p0key ]);
@@ -175,7 +175,7 @@ fun try_move($dx, $dy, $state, $board) {
     return;
 }
 
-fun lookup($key, $state, $board) {
+fun lookup($board, $state, $key) {
     return $board->{$key} // $state->{$key} // $floor;
 }
 
