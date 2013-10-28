@@ -5,6 +5,7 @@ use autodie;
 use Function::Parameters qw(:strict);
 use List::Util qw( max );
 use Time::HiRes qw( usleep );
+use Term::ANSIColor qw( colored );
 use warnings FATAL => 'all';
 
 # Sokoban solver
@@ -36,6 +37,11 @@ my %moves = (
     R => [ +1, 0 ],
 );
 
+my %colors = (
+    $dude => 'magenta',
+    $hole => 'blue',
+    $rock => 'yellow',
+);
 exit main(@ARGV);
 
 fun main(@argv) {
@@ -92,10 +98,15 @@ fun print_state($board, $state) {
         for my $x (0 .. $board->{w}-1) {
             my $c = ($x == $state->{x} && $y == $state->{y}) ?
                     $dude : lookup($board, $state, key($x, $y));
-            $row .= $c;
+            $row .= colorise($c);
         }
         say $row;
     }
+}
+
+fun colorise($char) {
+    my $color = $colors{$char};
+    return $color ? colored($char, $color) : $char;
 }
 
 fun playback_solution($board, $state, $solution) {
