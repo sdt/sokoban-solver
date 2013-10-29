@@ -185,13 +185,7 @@ fun parse_level($filename) {
 }
 
 fun state_rep($state) {
-    my @keys = sort keys %$state;
-    join('', map { $_ => $state->{$_} } @keys);
-}
-
-fun holes_rep($state) {
-    my @keys = sort grep { $state->{$_} eq $hole } keys %$state;
-    join(',', @keys);
+    join(':', $state->{x}, $state->{y}, sort keys %$state);
 }
 
 fun is_solution($board, $state) {
