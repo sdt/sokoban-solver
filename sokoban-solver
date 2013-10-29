@@ -100,7 +100,7 @@ fun solve_level($board, $state) {
             next unless $new_state;
             next if has_been_seen($new_state, $seen_states);
             my $new_hist = "$hist,$move";
-            return substr($new_hist, 1) if is_solution($new_state);
+            return substr($new_hist, 1) if is_solution($board, $new_state);
             push(@agenda, [ $new_state, $new_hist ]);
         }
     }
@@ -163,8 +163,8 @@ fun parse_level($filename) {
                 $state->{x} = $x;
                 $state->{y} = $y;
             }
-            elsif ($char eq $hole || $char eq $rock) { $state->{$key} = $char }
-            elsif ($char eq $wall) { $board->{$key} = $char }
+            elsif ($char eq $rock) { $state->{$key} = $char }
+            elsif ($char eq $hole || $char eq $wall) { $board->{$key} = $char }
             $x++;
             $w = max($w, $x);
         }
@@ -172,7 +172,7 @@ fun parse_level($filename) {
     }
     $board->{w} = $w;
     $board->{h} = $y;
-    my $holes = grep { $_ eq $hole } values %$state;
+    my $holes = grep { $_ eq $hole } values %$board;
     my $rocks = grep { $_ eq $rock } values %$state;
     die "$rocks rocks, but $holes holes" unless $holes == $rocks;
     die "No rocks or holes!" unless $holes;
@@ -190,8 +190,13 @@ fun holes_rep($state) {
     join(',', @keys);
 }
 
-fun is_solution($state) {
-    (grep { $_ eq $rock } values %$state) == 0
+fun is_solution($board, $state) {
+    while (my ($key, $char) = each %$state) {
+        next unless $char eq $rock;
+        my $c = $board->{$key};
+        return unless $c && $c eq $hole;
+    }
+    return 1;
 }
 
 fun try_move($board, $state, $dx, $dy) {
@@ -244,12 +249,12 @@ fun make_colormap($board, $state) {
     my $colormap = {};
 
     # First of all, holes are always green
-    for my $key (grep { $state->{$_} eq $hole } keys %$state) {
+    for my $key (grep { $board->{$_} eq $hole } keys %$board) {
         $colormap->{$key} = $green;
     }
 
     # And walls are red
-    for my $key (grep { $_ =~ /^\d+:\d+$/ } keys %$board) {
+    for my $key (grep { $board->{$_} eq $wall } keys %$board) {
         $colormap->{$key} = $red;
     }
 
@@ -288,6 +293,6 @@ fun make_colormap($board, $state) {
 }
 
 fun colormap($board, $state) {
-    my $state_rep = holes_rep($state);
-    return $colormap{$state_rep} //= make_colormap($board, $state);
+    state $colormap = make_colormap($board, $state);
+    return $colormap;
 }
