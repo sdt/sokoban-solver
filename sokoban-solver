@@ -253,17 +253,6 @@ fun make_colormap($board, $state) {
         $colormap->{$key} = $red;
     }
 
-    # Floodfill from the edges - the outside area is red
-    # (or green it doesn't matter really)
-    for my $x (0 .. $w-1) {
-        floodfill($board, $colormap, $x, 0, $red);
-        floodfill($board, $colormap, $x, $h - 1, $red);
-    }
-    for my $y (0 .. $h-1) {
-        floodfill($board, $colormap, 0, $y, $red);
-        floodfill($board, $colormap, $w - 1, $y, $red);
-    }
-
     my $board_size = $w * $h;
     my $colors_filled = keys %$colormap;
     while (keys %$colormap < $board_size) {
@@ -296,19 +285,6 @@ fun make_colormap($board, $state) {
     }
 
     return $colormap;
-}
-
-fun floodfill($board, $colormap, $x, $y, $c) {
-    return if ($x < 0 || $x >= $board->{w});
-    return if ($y < 0 || $y >= $board->{h});
-    my $key = key($x, $y);
-    return if $board->{$key};
-    return if $colormap->{$key};
-    $colormap->{$key} = $c;
-    for my $delta (values %moves) {
-        my ($dx, $dy) = @$delta;
-        floodfill($board, $colormap, $x + $dx, $y + $dy, $c);
-    }
 }
 
 fun colormap($board, $state) {
