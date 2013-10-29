@@ -202,13 +202,13 @@ fun try_move($board, $state, $dx, $dy) {
     my $y = $state->{y};
 
     my $p0key = ($x + $dx) . ':' . ($y + $dy);
-    my $p0 = $board->{$p0key} // $state->{$p0key} // $floor;
+    my $p0 = $state->{$p0key} // $board->{$p0key} // $floor;
     if ($p0 eq $floor || $p0 eq $hole || $p0 eq $red) {
         return new_state($state, { x => $x + $dx, y => $y + $dy });
     }
     elsif ($p0 eq $rock) {
         my $p1key = ($x + $dx * 2) . ':' . ($y + $dy * 2);
-        my $p1 = $board->{$p1key} // $state->{$p1key} // $floor;
+        my $p1 = $state->{$p1key} // $board->{$p1key} // $floor;
         if ($p1 eq $floor || $p1 eq $hole) { # $floor means not red!
             return new_state($state,
                 { x => $x + $dx, y => $y + $dy, $p1key => $rock }, [ $p0key ]);
@@ -218,7 +218,7 @@ fun try_move($board, $state, $dx, $dy) {
 }
 
 fun lookup($board, $state, $key) {
-    return $board->{$key} // $state->{$key} // $floor;
+    return $state->{$key} // $board->{$key} // $floor;
 }
 
 fun new_state($state, $changes, $deletions = []) {
