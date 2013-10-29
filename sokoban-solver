@@ -49,8 +49,6 @@ my %colors = (
     $green => 'cyan',
 );
 
-my %colormap;
-
 exit main(@ARGV);
 
 fun main(@argv) {
@@ -177,6 +175,12 @@ fun parse_level($filename) {
     die "$rocks rocks, but $holes holes" unless $holes == $rocks;
     die "No rocks or holes!" unless $holes;
 
+    my $colormap = make_colormap($board);
+    for my $key (keys %$colormap) {
+        next unless $colormap->{$key} eq $red;
+        $board->{$key} //= $red;
+    }
+
     return ($board, $state);
 }
 
@@ -203,17 +207,15 @@ fun try_move($board, $state, $dx, $dy) {
     my $x = $state->{x};
     my $y = $state->{y};
 
-    my $colormap = colormap($board, $state);
-
     my $p0key = key($x + $dx, $y + $dy);
     my $p0 = lookup($board, $state, $p0key);
-    if ($p0 eq $floor || $p0 eq $hole) {
+    if ($p0 eq $floor || $p0 eq $hole || $p0 eq $red) {
         return new_state($state, { x => $x + $dx, y => $y + $dy });
     }
     elsif ($p0 eq $rock) {
         my $p1key = key($x + $dx * 2, $y + $dy * 2);
         my $p1 = lookup($board, $state, $p1key);
-        if ($p1 eq $floor && $colormap->{$p1key} ne $red) {
+        if ($p1 eq $floor) { # $floor means not red!
             return new_state($state,
                 { x => $x + $dx, y => $y + $dy, $p1key => $rock }, [ $p0key ]);
         }
@@ -243,7 +245,7 @@ fun has_been_seen($state, $history) {
 fun key($x, $y) { "$x:$y" }
 fun unkey($key) { split(/:/, $key) }
 
-fun make_colormap($board, $state) {
+fun make_colormap($board) {
     my $w = $board->{w};
     my $h = $board->{h};
     my $colormap = {};
@@ -289,10 +291,5 @@ fun make_colormap($board, $state) {
         }
     }
 
-    return $colormap;
-}
-
-fun colormap($board, $state) {
-    state $colormap = make_colormap($board, $state);
     return $colormap;
 }
