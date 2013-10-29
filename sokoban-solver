@@ -90,8 +90,9 @@ fun solve_level($board, $state) {
     my $seen_states = {};
     while (my $next = shift(@agenda)) {
         my ($state, $hist) = @$next;
+        $states++;
         say STDERR "$states states, ", scalar @agenda, " in queue, $hist"
-            if ((++$states & 0x7FFF) == 0);
+            if (($states & 0x7FFF) == 0);
         for my $move (keys %moves) {
             my ($dx, $dy) = @{ $moves{$move} };
             my $new_state = try_move($board, $state, $dx, $dy);
