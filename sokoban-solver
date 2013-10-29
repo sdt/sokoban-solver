@@ -55,7 +55,7 @@ exit main(@ARGV);
 
 fun main(@argv) {
     my ($board, $state) = parse_level($argv[0] // 'test.txt');
-    my $solution = solve_level($board, $state);
+    my $solution = $argv[1] // solve_level($board, $state);
     if ($solution) {
         playback_solution($board, $state, $solution);
         say $solution;
