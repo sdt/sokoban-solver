@@ -111,6 +111,7 @@ fun print_state($board, $state) {
         for my $x (0 .. $board->{w}-1) {
             my $c = ($x == $state->{x} && $y == $state->{y}) ?
                     $dude : lookup($board, $state, key($x, $y));
+            $c = $floor if $c eq $red;
             $row .= colorise($c);
         }
         say STDERR $row;
