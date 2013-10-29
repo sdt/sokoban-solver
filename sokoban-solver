@@ -56,9 +56,14 @@ exit main(@ARGV);
 fun main(@argv) {
     my ($board, $state) = parse_level($argv[0] // 'test.txt');
     my $solution = solve_level($board, $state);
-    playback_solution($board, $state, $solution) if $solution;
-    say $solution // 'No solution';
-    say "$states states examined";
+    if ($solution) {
+        playback_solution($board, $state, $solution);
+        say $solution;
+    }
+    else {
+        say STDERR 'No solution';
+    }
+    say STDERR "$states states examined";
     return 0;
 }
 
@@ -87,10 +92,8 @@ fun solve_level($board, $state) {
     my $seen_states = {};
     while (my $next = shift(@agenda)) {
         my ($state, $hist) = @$next;
-        ++$states;
-        if (($states & 0x7FFF) == 0) {
-            say "$states states, ", scalar @agenda, " in queue, $hist";
-        }
+        say STDERR "$states states, ", scalar @agenda, " in queue, $hist"
+            if ((++$states & 0x7FFF) == 0);
         for my $move (keys %moves) {
             my ($dx, $dy) = @{ $moves{$move} };
             my $new_state = try_move($board, $state, $dx, $dy);
@@ -112,7 +115,7 @@ fun print_state($board, $state) {
                     $dude : lookup($board, $state, key($x, $y));
             $row .= colorise($c);
         }
-        say $row;
+        say STDERR $row;
     }
 }
 
@@ -124,7 +127,7 @@ fun print_colormap($board, $state, $colormap) {
             my $c = $state->{$key} // $colormap->{$key} // $floor;
             $row .= colorise($c);
         }
-        say $row;
+        say STDERR $row;
     }
 }
 
