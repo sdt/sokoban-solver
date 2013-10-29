@@ -201,14 +201,14 @@ fun try_move($board, $state, $dx, $dy) {
     my $x = $state->{x};
     my $y = $state->{y};
 
-    my $p0key = key($x + $dx, $y + $dy);
-    my $p0 = lookup($board, $state, $p0key);
+    my $p0key = ($x + $dx) . ':' . ($y + $dy);
+    my $p0 = $board->{$p0key} // $state->{$p0key} // $floor;
     if ($p0 eq $floor || $p0 eq $hole || $p0 eq $red) {
         return new_state($state, { x => $x + $dx, y => $y + $dy });
     }
     elsif ($p0 eq $rock) {
-        my $p1key = key($x + $dx * 2, $y + $dy * 2);
-        my $p1 = lookup($board, $state, $p1key);
+        my $p1key = ($x + $dx * 2) . ':' . ($y + $dy * 2);
+        my $p1 = $board->{$p1key} // $state->{$p1key} // $floor;
         if ($p1 eq $floor) { # $floor means not red!
             return new_state($state,
                 { x => $x + $dx, y => $y + $dy, $p1key => $rock }, [ $p0key ]);
