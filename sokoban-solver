@@ -34,6 +34,19 @@ my $states = 0;
 my $green = 'G';
 my $red   = 'R';
 
+# State is now an arrayref
+#
+# 0 = x
+# 1 = y
+# 2 = join(',', sort keys %rocks)
+# 3 = %\rocks
+# 4 = history
+#
+# State key now becomes join(',', @{$state}[0 .. 2])
+#
+# Most moves don't push rocks, and we spend a lot of time recomputing the
+# state key.
+
 my %moves = (
     U => [ 0, -1 ],
     D => [ 0, +1 ],
@@ -85,33 +98,36 @@ fun main(@argv) {
 # Another option: $object{$x:$y} = player | rock | wall | hole
 
 fun solve_level($board, $state) {
-    my @agenda = ( [ $state, '' ] );
+    my @agenda = ( $state );
 
     my $seen_states = {};
-    while (my $next = shift(@agenda)) {
-        my ($state, $hist) = @$next;
+    while (my $state = shift(@agenda)) {
         $states++;
-        say STDERR "$states states, ", scalar @agenda, " in queue, $hist"
-            if (($states & 0x7FFF) == 0);
+        say STDERR "$states states, ", scalar @agenda,
+                   " in queue, ", $state->[4]
+            if (($states & 0xFFFFF) == 0);
         for my $move (keys %moves) {
             my ($dx, $dy) = @{ $moves{$move} };
             my $new_state = try_move($board, $state, $dx, $dy);
             next unless $new_state;
             next if has_been_seen($new_state, $seen_states);
-            my $new_hist = "$hist,$move";
+            my $new_hist = $state->[4] . ',' . $move;
             return substr($new_hist, 1) if is_solution($board, $new_state);
-            push(@agenda, [ $new_state, $new_hist ]);
+            $new_state->[4] = $new_hist;
+            push(@agenda, $new_state);
         }
     }
+
     return;
 }
 
 fun print_state($board, $state) {
+    my ($px, $py, undef, $rocks) = @$state;
     for my $y (0 .. $board->{h}-1) {
         my $row;
         for my $x (0 .. $board->{w}-1) {
-            my $c = ($x == $state->{x} && $y == $state->{y}) ?
-                    $dude : lookup($board, $state, key($x, $y));
+            my $c = ($x == $px && $y == $py) ?
+                    $dude : lookup($board, $rocks, key($x, $y));
             $c = $floor if $c eq $red;
             $row .= colorise($c);
         }
@@ -120,11 +136,12 @@ fun print_state($board, $state) {
 }
 
 fun print_colormap($board, $state, $colormap) {
+    my $rocks = $state->[3];
     for my $y (0 .. $board->{h}-1) {
         my $row;
         for my $x (0 .. $board->{w}-1) {
             my $key = key($x, $y);
-            my $c = $state->{$key} // $colormap->{$key} // $floor;
+            my $c = $rocks->{$key} // $colormap->{$key} // $floor;
             $row .= colorise($c);
         }
         say STDERR $row;
@@ -151,7 +168,7 @@ fun playback_solution($board, $state, $solution) {
 fun parse_level($filename) {
     open my $fh, '<', $filename;
     my $board = { };
-    my $state = { };
+    my $state = [ ];
     my $pos;
     my $y = 0;
     my $w = 0;
@@ -160,10 +177,10 @@ fun parse_level($filename) {
         for my $char (split(//, $line)) {
             my $key = key($x, $y);
             if ($char eq $dude) {
-                $state->{x} = $x;
-                $state->{y} = $y;
+                $state->[0] = $x;
+                $state->[1] = $y;
             }
-            elsif ($char eq $rock) { $state->{$key} = $char }
+            elsif ($char eq $rock) { $state->[3]->{$key} = $char }
             elsif ($char eq $hole || $char eq $wall) { $board->{$key} = $char }
             $x++;
             $w = max($w, $x);
@@ -173,7 +190,7 @@ fun parse_level($filename) {
     $board->{w} = $w;
     $board->{h} = $y;
     my $holes = grep { $_ eq $hole } values %$board;
-    my $rocks = grep { $_ eq $rock } values %$state;
+    my $rocks = keys %{ $state->[3] };
     die "$rocks rocks, but $holes holes" unless $holes == $rocks;
     die "No rocks or holes!" unless $holes;
 
@@ -182,17 +199,23 @@ fun parse_level($filename) {
         next unless $colormap->{$key} eq $red;
         $board->{$key} //= $red;
     }
+    $state->[2] = rock_rep($state->[3]);
+    $state->[4] = '';
 
     return ($board, $state);
 }
 
 fun state_rep($state) {
-    join(':', $state->{x}, $state->{y}, sort keys %$state);
+    join(',', @{ $state }[0 .. 2]);
+}
+
+fun rock_rep($rocks) {
+    join(',', sort keys %$rocks);
 }
 
 fun is_solution($board, $state) {
-    while (my ($key, $char) = each %$state) {
-        next unless $char eq $rock;
+    my $rocks = $state->[3];
+    for my $key (keys %$rocks) {
         my $c = $board->{$key};
         return unless $c && $c eq $hole;
     }
@@ -200,20 +223,22 @@ fun is_solution($board, $state) {
 }
 
 fun try_move($board, $state, $dx, $dy) {
-    my $x = $state->{x};
-    my $y = $state->{y};
+    my ($x, $y, $rockrep, $rocks, $hist) = @$state;
 
     my $p0key = ($x + $dx) . ':' . ($y + $dy);
-    my $p0 = $state->{$p0key} // $board->{$p0key} // $floor;
+    my $p0 = $rocks->{$p0key} // $board->{$p0key} // $floor;
     if ($p0 eq $floor || $p0 eq $hole || $p0 eq $red) {
-        return new_state($state, { x => $x + $dx, y => $y + $dy });
+        # Just moving - no rock pushing
+        return [ $x + $dx, $y + $dy, $rockrep, $rocks, $hist ];
     }
     elsif ($p0 eq $rock) {
         my $p1key = ($x + $dx * 2) . ':' . ($y + $dy * 2);
-        my $p1 = $state->{$p1key} // $board->{$p1key} // $floor;
+        my $p1 = $rocks->{$p1key} // $board->{$p1key} // $floor;
         if ($p1 eq $floor || $p1 eq $hole) { # $floor means not red!
-            return new_state($state,
-                { x => $x + $dx, y => $y + $dy, $p1key => $rock }, [ $p0key ]);
+            my %new_rocks = %$rocks;
+            $new_rocks{$p1key} = $rock;
+            delete $new_rocks{$p0key};
+            return [ $x + $dx, $y + $dy, rock_rep(\%new_rocks), \%new_rocks, $hist ];
         }
     }
     return;
@@ -221,12 +246,6 @@ fun try_move($board, $state, $dx, $dy) {
 
 fun lookup($board, $state, $key) {
     return $state->{$key} // $board->{$key} // $floor;
-}
-
-fun new_state($state, $changes, $deletions = []) {
-    my %new_state = ( %$state, %$changes );
-    delete @new_state{@$deletions};
-    return \%new_state;
 }
 
 fun has_been_seen($state, $history) {
