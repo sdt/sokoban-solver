@@ -40,7 +40,8 @@ my $red   = 'R';
 # 1 = y
 # 2 = join(',', sort keys %rocks)
 # 3 = %\rocks
-# 4 = history
+# 4 = last move
+# 5 = prev state
 #
 # State key now becomes join(',', @{$state}[0 .. 2])
 #
@@ -104,21 +105,35 @@ fun solve_level($board, $state) {
     while (my $state = shift(@agenda)) {
         $states++;
         say STDERR "$states states, ", scalar @agenda,
-                   " in queue, ", $state->[4]
+                   " in queue, ", moves($state)
             if (($states & 0xFFFFF) == 0);
         for my $move (keys %moves) {
             my ($dx, $dy) = @{ $moves{$move} };
             my $new_state = try_move($board, $state, $dx, $dy);
             next unless $new_state;
-            next if has_been_seen($new_state, $seen_states);
-            my $new_hist = $state->[4] . ',' . $move;
-            return substr($new_hist, 1) if is_solution($board, $new_state);
-            $new_state->[4] = $new_hist;
+            my $state_rep = $new_state->[0]
+                            . ',' . $new_state->[1]
+                            . ',' . $new_state->[2];
+            next if $seen_states->{$state_rep}++;
+            $new_state->[4] = $move;
+            $new_state->[5] = $state;
+            return moves($new_state) if is_solution($board, $new_state);
             push(@agenda, $new_state);
         }
     }
 
     return;
+}
+
+fun moves($state) {
+    my $moves = $state->[4];
+
+    while (1) {
+        $state = $state->[5];
+        last unless $state->[4];
+        $moves = $state->[4] . ',' . $moves;
+    }
+    $moves;
 }
 
 fun print_state($board, $state) {
@@ -201,12 +216,9 @@ fun parse_level($filename) {
     }
     $state->[2] = rock_rep($state->[3]);
     $state->[4] = '';
+    $state->[5] = undef;
 
     return ($board, $state);
-}
-
-fun state_rep($state) {
-    join(',', @{ $state }[0 .. 2]);
 }
 
 fun rock_rep($rocks) {
@@ -249,8 +261,6 @@ fun lookup($board, $state, $key) {
 }
 
 fun has_been_seen($state, $history) {
-    my $rep = state_rep($state);
-    return $history->{$rep}++;
 }
 
 fun key($x, $y) { "$x:$y" }
