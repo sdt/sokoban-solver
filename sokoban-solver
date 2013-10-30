@@ -42,6 +42,7 @@ my $red   = 'R';
 # 3 = %\rocks
 # 4 = last move
 # 5 = prev state
+# 6 = unfinished rock count
 #
 # State key now becomes join(',', @{$state}[0 .. 2])
 #
@@ -114,9 +115,7 @@ fun solve_level($board, $state) {
                             . ',' . $new_state->[1]
                             . ',' . $new_state->[2];
             next if $seen_states->{$state_rep}++;
-            $new_state->[4] = $move;
-            $new_state->[5] = $state;
-            return moves($new_state) if is_solution($board, $new_state);
+            return moves($new_state) if $new_state->[6] == 0;
             push(@agenda, $new_state);
         }
     }
@@ -215,21 +214,13 @@ fun parse_level($filename) {
     $state->[2] = rock_rep($state->[3]);
     $state->[4] = '';
     $state->[5] = undef;
+    $state->[6] = $rocks;
 
     return ($board, $state);
 }
 
 fun rock_rep($rocks) {
     join(',', sort keys %$rocks);
-}
-
-fun is_solution($board, $state) {
-    my $rocks = $state->[3];
-    for my $key (keys %$rocks) {
-        my $c = $board->{$key};
-        return unless $c && $c eq $hole;
-    }
-    return 1;
 }
 
 fun try_move($board, $state, $move) {
@@ -240,17 +231,20 @@ fun try_move($board, $state, $move) {
     my $p0 = $rocks->{$p0key} // $board->{$p0key} // $floor;
     if ($p0 eq $floor || $p0 eq $hole || $p0 eq $red) {
         # Just moving - no rock pushing
-        return [ $x + $dx, $y + $dy, $rockrep, $rocks, $move, $state ];
+        return [ $x + $dx, $y + $dy, $rockrep, $rocks, $move, $state, $state->[6] ];
     }
     elsif ($p0 eq $rock) {
         my $p1key = ($x + $dx * 2) . ':' . ($y + $dy * 2);
         my $p1 = $rocks->{$p1key} // $board->{$p1key} // $floor;
         if ($p1 eq $floor || $p1 eq $hole) { # $floor means not red!
+            my $score = $state->[6];
+            $score-- if $p1 eq $hole; # pushed rock onto hole
+            $score++ if $board->{$p0key}; # can only be hole if it exists
             my %new_rocks = %$rocks;
             $new_rocks{$p1key} = $rock;
             delete $new_rocks{$p0key};
             return [ $x + $dx, $y + $dy, rock_rep(\%new_rocks), \%new_rocks,
-                     $move, $state ];
+                     $move, $state, $score ];
         }
     }
     return;
