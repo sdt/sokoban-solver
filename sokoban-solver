@@ -108,8 +108,7 @@ fun solve_level($board, $state) {
                    " in queue, ", moves($state)
             if (($states & 0xFFFFF) == 0);
         for my $move (keys %moves) {
-            my ($dx, $dy) = @{ $moves{$move} };
-            my $new_state = try_move($board, $state, $dx, $dy);
+            my $new_state = try_move($board, $state, $move);
             next unless $new_state;
             my $state_rep = $new_state->[0]
                             . ',' . $new_state->[1]
@@ -172,8 +171,7 @@ fun playback_solution($board, $state, $solution) {
     print_state($board, $state);
 
     for my $move (split(/,/, $solution)) {
-        my ($dx, $dy) = @{ $moves{$move} };
-        $state = try_move($board, $state, $dx, $dy);
+        $state = try_move($board, $state, $move);
         usleep($sleep_us);
         say '';
         print_state($board, $state);
@@ -234,14 +232,15 @@ fun is_solution($board, $state) {
     return 1;
 }
 
-fun try_move($board, $state, $dx, $dy) {
-    my ($x, $y, $rockrep, $rocks, $hist) = @$state;
+fun try_move($board, $state, $move) {
+    my ($x, $y, $rockrep, $rocks) = @$state;
+    my ($dx, $dy) = @{ $moves{$move} };
 
     my $p0key = ($x + $dx) . ':' . ($y + $dy);
     my $p0 = $rocks->{$p0key} // $board->{$p0key} // $floor;
     if ($p0 eq $floor || $p0 eq $hole || $p0 eq $red) {
         # Just moving - no rock pushing
-        return [ $x + $dx, $y + $dy, $rockrep, $rocks, $hist ];
+        return [ $x + $dx, $y + $dy, $rockrep, $rocks, $move, $state ];
     }
     elsif ($p0 eq $rock) {
         my $p1key = ($x + $dx * 2) . ':' . ($y + $dy * 2);
@@ -250,7 +249,8 @@ fun try_move($board, $state, $dx, $dy) {
             my %new_rocks = %$rocks;
             $new_rocks{$p1key} = $rock;
             delete $new_rocks{$p0key};
-            return [ $x + $dx, $y + $dy, rock_rep(\%new_rocks), \%new_rocks, $hist ];
+            return [ $x + $dx, $y + $dy, rock_rep(\%new_rocks), \%new_rocks,
+                     $move, $state ];
         }
     }
     return;
